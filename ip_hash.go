@@ -48,7 +48,7 @@ func IPHash(servers Servers) (func(string) string, error) {
 
 		m[hash] = item
 
-		return ip
+		return item
 	}, nil
 }
 
