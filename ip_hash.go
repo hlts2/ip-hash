@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/hlts2/gomaphore"
+	"github.com/hlts2/lock-free"
 	"github.com/hlts2/round-robin"
 )
 
@@ -28,20 +28,20 @@ func IPHash(servers Servers) (func(string) string, error) {
 		return nil, err
 	}
 
-	semaphore := new(gomaphore.Gomaphore)
+	lf := lockfree.New()
 
 	m := make(map[string]string)
 	prefix := strings.Join(servers, ",")
 
 	return func(ip string) string {
-		semaphore.Wait()
+		lf.Wait()
 
 		d := prefix + ip
 		hash := md5Hash(*(*[]byte)(unsafe.Pointer(&d)))
 
 		if v, ok := m[hash]; ok {
 			// I do not use defer, decause defer is slow
-			semaphore.Signal()
+			lf.Signal()
 			return v
 		}
 
@@ -49,7 +49,7 @@ func IPHash(servers Servers) (func(string) string, error) {
 
 		m[hash] = item
 
-		semaphore.Signal()
+		lf.Signal()
 		return item
 	}, nil
 }
