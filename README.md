@@ -15,4 +15,15 @@ go get github.com/hlts2/ip-hash
 
 ```go
 
+// Servers is []string type
+assign, err := iphash.IPHash(iphash.Servers{
+    "server-1",
+    "server-2",
+    "server-3",
+})
+
+assign("192.168.33.10") // server-1
+assign("192.168.33.10") // server-1
+assign("192.168.33.11") // server-2
+assign("192.168.33.11") // server-2
 ```
