@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
-	"sync/atomic"
 	"unsafe"
 
+	"github.com/hlts2/gomaphore"
 	"github.com/hlts2/round-robin"
 )
 
@@ -28,24 +28,20 @@ func IPHash(servers Servers) (func(string) string, error) {
 		return nil, err
 	}
 
-	var flg int32
+	semaphore := new(gomaphore.Gomaphore)
 
 	m := make(map[string]string)
 	prefix := strings.Join(servers, ",")
 
 	return func(ip string) string {
-		for {
-			if flg == 0 && atomic.CompareAndSwapInt32(&flg, 0, 1) {
-				break
-			}
-		}
+		semaphore.Wait()
 
 		d := prefix + ip
 		hash := md5Hash(*(*[]byte)(unsafe.Pointer(&d)))
 
 		if v, ok := m[hash]; ok {
 			// I do not use defer, decause defer is slow
-			flg = 0
+			semaphore.Signal()
 			return v
 		}
 
@@ -53,7 +49,7 @@ func IPHash(servers Servers) (func(string) string, error) {
 
 		m[hash] = item
 
-		flg = 0
+		semaphore.Signal()
 		return item
 	}, nil
 }
