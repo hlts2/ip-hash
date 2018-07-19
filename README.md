@@ -12,18 +12,21 @@ go get github.com/hlts2/ip-hash
 ```
 
 ## Example
-
 ```go
-
-// Servers is []string type
-assign, err := iphash.IPHash(iphash.Servers{
+iph, err := iphash.New([]string{
     "server-1",
     "server-2",
     "server-3",
 })
 
-assign("192.168.33.10") // server-1
-assign("192.168.33.10") // server-1
-assign("192.168.33.11") // server-2
-assign("192.168.33.11") // server-2
+iph.Next("192.168.33.10") // server-1
+iph.Next("192.168.33.10") // server-1
+iph.Next("192.168.33.11") // server-2
+iph.Next("192.168.33.11") // server-2
 ```
+
+## Author
+[hlts2](https://github.com/hlts2)
+
+## LICENSE
+ip-hash released under MIT license, refer [LICENSE](https://github.com/hlts2/ip-hash/blob/master/LICENSE) file.
