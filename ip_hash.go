@@ -1,61 +1,68 @@
 package iphash
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"errors"
-	"strings"
-	"unsafe"
+	"strconv"
 
-	"github.com/hlts2/lock-free"
+	lockfree "github.com/hlts2/lock-free"
 	"github.com/hlts2/round-robin"
 )
 
 // ErrServersNotExists is the error that servers dose not exists
 var ErrServersNotExists = errors.New("servers dose not exist")
 
-// Servers is custom type of servers
-type Servers []string
+// IPHash is base ip-hash interface
+type IPHash interface {
+	Next(addr string) string
+}
 
-// IPHash returns ip-hash clouser
-func IPHash(servers Servers) (func(string) string, error) {
-	if len(servers) == 0 {
+type iphash struct {
+	addrs []string
+	lf    lockfree.LockFree
+	m     map[string]string
+	rr    roundrobin.RoundRobin
+}
+
+// New returns IPHash(*iphash) object
+func New(addrs []string) (IPHash, error) {
+	if len(addrs) == 0 {
 		return nil, ErrServersNotExists
 	}
 
-	rrNext, err := roundrobin.RoundRobin(roundrobin.Servers(servers))
-	if err != nil {
-		return nil, err
-	}
+	rr, _ := roundrobin.New(addrs)
 
-	lf := lockfree.New()
-
-	m := make(map[string]string)
-	prefix := strings.Join(servers, ",")
-
-	return func(ip string) string {
-		lf.Wait()
-
-		d := prefix + ip
-		hash := md5Hash(*(*[]byte)(unsafe.Pointer(&d)))
-
-		if v, ok := m[hash]; ok {
-			// I do not use defer, decause defer is slow
-			lf.Signal()
-			return v
-		}
-
-		item := rrNext()
-
-		m[hash] = item
-
-		lf.Signal()
-		return item
+	return &iphash{
+		addrs: addrs,
+		m:     make(map[string]string),
+		lf:    lockfree.New(),
+		rr:    rr,
 	}, nil
 }
 
-func md5Hash(d []byte) string {
-	h := md5.New()
-	h.Write(d)
-	return hex.EncodeToString(h.Sum(nil))
+func (i *iphash) Next(addr string) string {
+	hash := strconv.Itoa(int(fnv32(addr)) % len(i.addrs))
+
+	i.lf.Wait()
+	addr, ok := i.m[hash]
+	if ok {
+		i.lf.Signal()
+		return addr
+	}
+
+	addr = i.rr.Next()
+	i.m[hash] = addr
+
+	i.lf.Signal()
+
+	return addr
+}
+
+func fnv32(key string) uint32 {
+	hash := uint32(2166136261)
+	const prime32 = uint32(16777619)
+	for i := 0; i < len(key); i++ {
+		hash *= prime32
+		hash ^= uint32(key[i])
+	}
+	return hash
 }

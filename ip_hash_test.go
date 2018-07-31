@@ -7,13 +7,13 @@ import (
 
 func TestIPHash(t *testing.T) {
 	tests := []struct {
-		servers  Servers
+		servers  []string
 		ips      []string
 		errExist bool
-		expected Servers
+		expected []string
 	}{
 		{
-			servers: Servers{
+			servers: []string{
 				"server-1",
 				"server-2",
 				"server-3",
@@ -25,7 +25,7 @@ func TestIPHash(t *testing.T) {
 				"192.168.33.11",
 			},
 			errExist: false,
-			expected: Servers{
+			expected: []string{
 				"server-1",
 				"server-1",
 				"server-2",
@@ -33,7 +33,7 @@ func TestIPHash(t *testing.T) {
 			},
 		},
 		{
-			servers: Servers{},
+			servers: []string{},
 			ips: []string{
 				"192.168.33.10",
 				"192.168.33.10",
@@ -45,8 +45,8 @@ func TestIPHash(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := make(Servers, 0, len(test.expected))
-		assign, err := IPHash(test.servers)
+		got := make([]string, 0, len(test.expected))
+		iphash, err := New(test.servers)
 
 		errExist := !(err == nil)
 		if errExist != test.errExist {
@@ -58,7 +58,7 @@ func TestIPHash(t *testing.T) {
 		}
 
 		for _, ip := range test.ips {
-			got = append(got, assign(ip))
+			got = append(got, iphash.Next(ip))
 		}
 
 		if !reflect.DeepEqual(test.expected, got) {
