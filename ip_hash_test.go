@@ -44,8 +44,6 @@ func TestIPHash(t *testing.T) {
 		},
 	}
 
-	iphash := New([]string{})
-
 	for _, test := range tests {
 		got := make([]string, 0, len(test.expected))
 		iphash, err := New(test.servers)
