@@ -13,16 +13,16 @@ go get github.com/hlts2/ip-hash
 
 ## Example
 ```go
-iph, err := iphash.New([]string{
-    "server-1",
-    "server-2",
-    "server-3",
-})
+ip, _ := iphash.New([]*url.URL{
+    {Host: "192.168.33.10"},
+    {Host: "192.168.33.11"},
+    {Host: "192.168.33.12"},
+ })
 
-iph.Next("192.168.33.10") // server-1
-iph.Next("192.168.33.10") // server-1
-iph.Next("192.168.33.11") // server-2
-iph.Next("192.168.33.11") // server-2
+ip.Next(&url.URL{Host: "192.168.33.10"})  // {Host: "192.168.33.10"}
+ip.Next(&url.URL{Host: "192.168.33.10"})  // {Host: "192.168.33.10"}
+ip.Next(&url.URL{Host: "192.168.33.44"})  // {Host: "192.168.33.11"}
+ip.Next(&url.URL{Host: "192.168.33.44"})  // {Host: "192.168.33.11"}
 ```
 
 ## Author
