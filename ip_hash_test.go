@@ -1,68 +1,55 @@
 package iphash
 
 import (
+	"net/url"
 	"reflect"
 	"testing"
 )
 
 func TestIPHash(t *testing.T) {
 	tests := []struct {
-		servers  []string
-		ips      []string
-		errExist bool
-		expected []string
+		urls  []*url.URL
+		ips   []*url.URL
+		iserr bool
+		want  []*url.URL
 	}{
 		{
-			servers: []string{
-				"server-1",
-				"server-2",
-				"server-3",
+			urls: []*url.URL{
+				{Host: "192.168.33.10"},
+				{Host: "192.168.33.11"},
+				{Host: "192.168.33.12"},
+				{Host: "192.168.33.13"},
 			},
-			ips: []string{
-				"192.168.33.10",
-				"192.168.33.10",
-				"192.168.33.11",
-				"192.168.33.11",
+			ips: []*url.URL{
+				{Host: "192.168.33.10"},
+				{Host: "192.168.33.10"},
+				{Host: "192.168.33.44"},
+				{Host: "192.168.33.44"},
 			},
-			errExist: false,
-			expected: []string{
-				"server-1",
-				"server-1",
-				"server-2",
-				"server-2",
+			iserr: false,
+			want: []*url.URL{
+				{Host: "192.168.33.10"},
+				{Host: "192.168.33.10"},
+				{Host: "192.168.33.11"},
+				{Host: "192.168.33.11"},
 			},
-		},
-		{
-			servers: []string{},
-			ips: []string{
-				"192.168.33.10",
-				"192.168.33.10",
-				"192.168.33.11",
-				"192.168.33.11",
-			},
-			errExist: true,
 		},
 	}
 
 	for _, test := range tests {
-		got := make([]string, 0, len(test.expected))
-		iphash, err := New(test.servers)
+		iphash, err := New(test.urls)
 
-		errExist := !(err == nil)
-		if errExist != test.errExist {
-			t.Fatalf("IPHash err is wrong. expected: %v, got: %v", test.errExist, errExist)
+		if got, want := !(err == nil), test.iserr; got != want {
+			t.Errorf("IPHash err is wrong. want: %v, but got: %v", want, got)
 		}
 
-		if err != nil {
-			continue
-		}
-
+		gots := make([]*url.URL, 0, len(test.want))
 		for _, ip := range test.ips {
-			got = append(got, iphash.Next(ip))
+			gots = append(gots, iphash.Next(ip))
 		}
 
-		if !reflect.DeepEqual(test.expected, got) {
-			t.Errorf("IPHash is wrong. expected: %v, got: %v", test.expected, got)
+		if got, want := gots, test.want; !reflect.DeepEqual(got, want) {
+			t.Errorf("IPHash is wrong. want: %v, but got: %v", want, got)
 		}
 	}
 }
