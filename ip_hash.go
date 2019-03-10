@@ -21,7 +21,8 @@ type IPHash interface {
 type iphash struct {
 	urls []*url.URL
 	cnt  uint64
-	m    *sync.Map
+	m    map[uint64]*url.URL
+	mu   *sync.Mutex
 	rr   roundrobin.RoundRobin
 }
 
@@ -36,13 +37,24 @@ func New(urls []*url.URL) (IPHash, error) {
 	return &iphash{
 		urls: urls,
 		cnt:  uint64(len(urls)),
-		m:    new(sync.Map),
+		m:    make(map[uint64]*url.URL),
+		mu:   new(sync.Mutex),
 		rr:   rr,
 	}, nil
 }
 
 func (i *iphash) Next(in *url.URL) *url.URL {
 	hashN := xxhash.Sum64(*(*[]byte)(unsafe.Pointer(&in.Host))) % i.cnt
-	v, _ := i.m.LoadOrStore(hashN, i.rr.Next())
-	return v.(*url.URL)
+
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if url, ok := i.m[hashN]; ok {
+		return url
+	}
+
+	url := i.rr.Next()
+	i.m[hashN] = url
+
+	return url
 }
