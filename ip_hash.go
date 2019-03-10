@@ -2,9 +2,11 @@ package iphash
 
 import (
 	"errors"
-	"strconv"
+	"net/url"
+	"sync"
+	"unsafe"
 
-	lockfree "github.com/hlts2/lock-free"
+	"github.com/cespare/xxhash"
 	"github.com/hlts2/round-robin"
 )
 
@@ -13,56 +15,34 @@ var ErrServersNotExists = errors.New("servers dose not exist")
 
 // IPHash is base ip-hash interface
 type IPHash interface {
-	Next(addr string) string
+	Next(in *url.URL) *url.URL
 }
 
 type iphash struct {
-	addrs []string
-	lf    lockfree.LockFree
-	m     map[string]string
-	rr    roundrobin.RoundRobin
+	urls []*url.URL
+	cnt  uint64
+	m    *sync.Map
+	rr   roundrobin.RoundRobin
 }
 
 // New returns IPHash(*iphash) object
-func New(addrs []string) (IPHash, error) {
-	if len(addrs) == 0 {
+func New(urls []*url.URL) (IPHash, error) {
+	if len(urls) == 0 {
 		return nil, ErrServersNotExists
 	}
 
-	rr, _ := roundrobin.New(addrs)
+	rr, _ := roundrobin.New(urls)
 
 	return &iphash{
-		addrs: addrs,
-		m:     make(map[string]string),
-		lf:    lockfree.New(),
-		rr:    rr,
+		urls: urls,
+		cnt:  uint64(len(urls)),
+		m:    new(sync.Map),
+		rr:   rr,
 	}, nil
 }
 
-func (i *iphash) Next(addr string) string {
-	hash := strconv.Itoa(int(fnv32(addr)) % len(i.addrs))
-
-	i.lf.Wait()
-	addr, ok := i.m[hash]
-	if ok {
-		i.lf.Signal()
-		return addr
-	}
-
-	addr = i.rr.Next()
-	i.m[hash] = addr
-
-	i.lf.Signal()
-
-	return addr
-}
-
-func fnv32(key string) uint32 {
-	hash := uint32(2166136261)
-	const prime32 = uint32(16777619)
-	for i := 0; i < len(key); i++ {
-		hash *= prime32
-		hash ^= uint32(key[i])
-	}
-	return hash
+func (i *iphash) Next(in *url.URL) *url.URL {
+	hashN := xxhash.Sum64(*(*[]byte)(unsafe.Pointer(&in.Host))) % i.cnt
+	v, _ := i.m.LoadOrStore(hashN, i.rr.Next())
+	return v.(*url.URL)
 }
