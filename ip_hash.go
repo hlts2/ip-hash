@@ -7,7 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/cespare/xxhash"
-	"github.com/hlts2/round-robin"
+	roundrobin "github.com/hlts2/round-robin"
 )
 
 // ErrServersNotExists is the error that servers dose not exists
@@ -32,7 +32,7 @@ func New(urls []*url.URL) (IPHash, error) {
 		return nil, ErrServersNotExists
 	}
 
-	rr, _ := roundrobin.New(urls)
+	rr, _ := roundrobin.New(urls...)
 
 	return &iphash{
 		urls: urls,
